@@ -6,9 +6,9 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Emissions per compute hour (kg CO2e/hour) based on Google TPU LCA study
+# Emissions per compute hour (kg CO2e/hour)
 emission_factors = {
-    "a100": 0.050,     # Approx. estimate
+    "a100": 0.050,
     "v100": 0.040,
     "t4": 0.030,
     "tpu-v4": 0.0526,
@@ -20,6 +20,7 @@ emission_factors = {
 def calculate():
     data = request.json
 
+    # Core parameters
     epochs = float(data.get("epochs", 0))
     compute_hours = float(data.get("computeHours", 0))
     gpu_type = data.get("gpuType", "a100").lower()
@@ -27,19 +28,27 @@ def calculate():
     freq = float(data.get("inferenceFreq", 0))
     duration = float(data.get("duration", 0))
 
-    # Use static region intensity for now (real-time API to be integrated later)
-    region_intensity = {
-        "us": 0.6,
-        "eu": 0.4,
-        "nordics": 0.1
-    }
+    # New parameters
+    flops = float(data.get("modelSize", 100))  # in billions
+    pue = float(data.get("pue", 1.3))
+    reuse = data.get("reuse", False)
+    intensity = float(data.get("gridIntensity", 0.6))
 
-    intensity = region_intensity.get(region, 0.6)
     factor = emission_factors.get(gpu_type, 0.05)
 
-    training_emissions = compute_hours * factor
-    inference_emissions = freq * 0.00005 * 30 * duration * intensity
-    hardware_emissions = factor * 50  # Approximation placeholder
+    # Adjust compute hours based on model size
+    flops_base = 100
+    flops_factor = flops / flops_base
+    adjusted_compute = compute_hours * flops_factor
+
+    # Calculate emissions
+    training_emissions = adjusted_compute * factor * pue
+    inference_emissions = freq * 0.00005 * 30 * duration * intensity * pue
+    hardware_emissions = factor * 50  # Placeholder for embodied emissions
+
+    if reuse:
+        training_emissions /= 5
+        hardware_emissions /= 5
 
     total = training_emissions + inference_emissions + hardware_emissions
 
