@@ -29,17 +29,17 @@ def calculate():
     duration = float(data.get("duration", 0))
 
     # New parameters
-    flops = float(data.get("modelSize", 100))  # in billions
+    parameters = float(data.get("modelSize", 1))  # in billions
     pue = float(data.get("pue", 1.3))
     reuse = data.get("reuse", False)
     intensity = float(data.get("gridIntensity", 0.6))
 
     factor = emission_factors.get(gpu_type, 0.05)
 
-    # Adjust compute hours based on model size
-    flops_base = 100
-    flops_factor = flops / flops_base
-    adjusted_compute = compute_hours * flops_factor
+    # Adjust compute hours based on model parameter size
+    base_params = 1.0  # 1 billion as baseline
+    param_factor = parameters / base_params
+    adjusted_compute = compute_hours * param_factor
 
     # Calculate emissions
     training_emissions = adjusted_compute * factor * pue
